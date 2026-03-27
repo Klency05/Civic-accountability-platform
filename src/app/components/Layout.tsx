@@ -8,7 +8,6 @@ import {
   User,
   ChevronRight,
   Landmark,
-  Palette,
 } from "lucide-react";
 
 const navItems = [
@@ -16,7 +15,6 @@ const navItems = [
   { label: "Report Issue",         icon: AlertTriangle,   path: "/report" },
   { label: "Admin Dashboard",      icon: ShieldCheck,     path: "/admin" },
   { label: "Public Transparency",  icon: BarChart3,       path: "/transparency" },
-  { label: "Design System",        icon: Palette,         path: "/design-system" },
 ];
 
 export function Layout() {
