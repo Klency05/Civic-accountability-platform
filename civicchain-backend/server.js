@@ -215,6 +215,43 @@ app.get("/create-admin", async (req, res) => {
   }
 });
 
+// DATABASE STATUS
+app.get("/db-status", async (req, res) => {
+  try {
+    const issueCount = await Issue.countDocuments();
+    const userCount = await User.countDocuments();
+    const logCount = await BlockchainLog.countDocuments();
+
+    res.json({
+      status: "✅ MongoDB Connected",
+      database: "civicchain",
+      issues: issueCount,
+      users: userCount,
+      blockchainLogs: logCount
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// RESET DATABASE (Dangerous - Use with caution)
+app.post("/reset-db", async (req, res) => {
+  try {
+    // Optional: Add password protection
+    const authHeader = req.headers.authorization;
+    if (authHeader !== "Bearer reset-secret-key") {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    await Issue.deleteMany({});
+    await BlockchainLog.deleteMany({});
+
+    res.json({ message: "Database cleared (issues & logs). Users preserved." });
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
 /* ------------------ MongoDB Connection ------------------ */
 
 mongoose
@@ -241,6 +278,93 @@ mongoose
       }
     } catch (err) {
       console.error("Error creating admin:", err);
+    }
+
+    // Seed sample issues on startup if database is empty
+    try {
+      const issueCount = await Issue.countDocuments();
+      if (issueCount === 0) {
+        console.log("📝 Seeding sample issues...");
+        const sampleIssues = [
+          {
+            id: "CIV-1024",
+            title: "Deep pothole on Anna Salai causing vehicle damage",
+            category: "Pothole",
+            location: "Anna Salai, Zone 1 – T. Nagar",
+            status: "In Progress",
+            date: new Date().toLocaleDateString("en-IN"),
+            fund: 120000,
+            reporter: "Citizen",
+            createdBy: "user@gmail.com",
+            votes: 12,
+            upvotedBy: ["admin@gmail.com"],
+            txHash: "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")
+          },
+          {
+            id: "CIV-1023",
+            title: "Overflowing garbage bins near T. Nagar bus stand",
+            category: "Garbage",
+            location: "T. Nagar Market, Zone 2",
+            status: "Open",
+            date: new Date().toLocaleDateString("en-IN"),
+            fund: 48000,
+            reporter: "Citizen",
+            createdBy: "citizen1@gmail.com",
+            votes: 8,
+            upvotedBy: [],
+            txHash: "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")
+          },
+          {
+            id: "CIV-1022",
+            title: "Street lights non-functional — 6 units out",
+            category: "Streetlight",
+            location: "Adyar Signal, Zone 3",
+            status: "Resolved",
+            date: new Date().toLocaleDateString("en-IN"),
+            fund: 90000,
+            reporter: "Citizen",
+            createdBy: "citizen2@gmail.com",
+            votes: 5,
+            upvotedBy: [],
+            txHash: "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")
+          },
+          {
+            id: "CIV-1021",
+            title: "Water main burst flooding Mylapore street",
+            category: "Water Issue",
+            location: "Mylapore, Zone 4",
+            status: "In Progress",
+            date: new Date().toLocaleDateString("en-IN"),
+            fund: 280000,
+            reporter: "Citizen",
+            createdBy: "citizen3@gmail.com",
+            votes: 15,
+            upvotedBy: [],
+            txHash: "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")
+          },
+          {
+            id: "CIV-1020",
+            title: "Road cave-in near Velachery MRTS station",
+            category: "Pothole",
+            location: "Velachery, Zone 5",
+            status: "Resolved",
+            date: new Date().toLocaleDateString("en-IN"),
+            fund: 380000,
+            reporter: "Citizen",
+            createdBy: "citizen4@gmail.com",
+            votes: 20,
+            upvotedBy: [],
+            txHash: "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")
+          }
+        ];
+
+        await Issue.insertMany(sampleIssues);
+        console.log("✅ Sample issues seeded successfully");
+      } else {
+        console.log(`✅ Database has ${issueCount} issues`);
+      }
+    } catch (err) {
+      console.error("Error seeding issues:", err);
     }
 
     app.listen(5000, () => {
