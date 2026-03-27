@@ -6,7 +6,7 @@ import {
   BlockchainStrip,
 } from "../design-system";
 import { Button } from "../design-system";
-
+import { useEffect, useState } from "react";
 const stats = [
   {
     label: "Total Issues Reported",
@@ -61,6 +61,50 @@ const recentIssues: {
 ];
 
 export function HomeDashboard() {
+  const [issues, setIssues] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/issues")
+      .then((res) => res.json())
+      .then((data) => {
+        const sorted = data.sort((a: any, b: any) => (b.votes || 0) - (a.votes || 0));
+        setIssues(sorted);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching issues:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  const handleUpvote = async (issueId: string) => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    if (!user.email) {
+      alert("Please login to upvote");
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/issues/${issueId}/upvote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userEmail: user.email }),
+      });
+
+      if (response.ok) {
+        const data = await fetch("http://localhost:5000/issues").then((r) => r.json());
+        const sorted = data.sort((a: any, b: any) => (b.votes || 0) - (a.votes || 0));
+        setIssues(sorted);
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to upvote");
+      }
+    } catch (error) {
+      console.error("Upvote error:", error);
+    }
+  };
+
   return (
     <div className="p-8 space-y-7">
       <PageHeader
@@ -76,20 +120,25 @@ export function HomeDashboard() {
         ))}
       </div>
 
-      {/* Recent Issues */}
-      <Card padding="none">
-        <CardHeader
-          title="Recent Issues"
-          subtitle="Latest civic complaints submitted by Chennai citizens"
-          action={<Button variant="ghost" size="sm">View All →</Button>}
-        />
-        <div>
-          {recentIssues.map((issue, i) => (
+        {/* Recent Issues */}
+    <Card padding="none">
+      <CardHeader
+        title="Recent Issues"
+        subtitle="Latest civic complaints submitted by Chennai citizens"
+        action={<Button variant="ghost" size="sm">View All →</Button>}
+      />
+      <div>
+        {loading ? (
+          <div className="px-6 py-8 text-center text-[#8A9BBE]">Loading issues...</div>
+        ) : issues.length === 0 ? (
+          <div className="px-6 py-8 text-center text-[#8A9BBE]">No issues yet</div>
+        ) : (
+          issues.map((issue, i) => (
             <div
               key={issue.id}
               className="px-6 py-4 flex items-center gap-4 transition-colors"
               style={{
-                borderBottom: i < recentIssues.length - 1 ? "1px solid #F4F7FB" : "none",
+                borderBottom: i < issues.length - 1 ? "1px solid #F4F7FB" : "none",
               }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "#F8FAFD"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = ""; }}
@@ -100,7 +149,15 @@ export function HomeDashboard() {
                   {issue.id}
                 </p>
                 <div className="mt-0.5">
-                  <PriorityBadge priority={issue.priority} />
+                  <span
+                    className="inline-block px-2.5 py-1 rounded-full text-xs font-medium"
+                    style={{
+                      background: issue.priority === "High" ? "#FEE2E2" : issue.priority === "Medium" ? "#FEF3C7" : "#D1FAE5",
+                      color: issue.priority === "High" ? "#991B1B" : issue.priority === "Medium" ? "#92400E" : "#065F46",
+                    }}
+                  >
+                    {issue.priority || "—"}
+                  </span>
                 </div>
               </div>
 
@@ -108,40 +165,82 @@ export function HomeDashboard() {
               <div className="flex-1 min-w-0">
                 <p className="text-[#0B2447] truncate" style={{ fontWeight: 500, fontSize: "0.875rem" }}>
                   {issue.title}
+                  {(issue.votes || 0) >= 5 && " 🔥"}
                 </p>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  <CategoryBadge category={issue.category as any} showEmoji />
+                  <span
+                    className="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+                    style={{
+                      background: "#E0F2FE",
+                      color: "#0369A1",
+                    }}
+                  >
+                    {issue.category || "—"}
+                  </span>
                   <span className="text-[#8A9BBE] flex items-center gap-1" style={{ fontSize: "0.75rem" }}>
                     <MapPin className="w-3 h-3" />
-                    {issue.location}
+                    {issue.location || "—"}
                   </span>
                 </div>
               </div>
 
-              {/* Fund */}
-              <div className="text-right w-28 flex-shrink-0">
-                <p className="text-[#0B2447]" style={{ fontWeight: 700, fontSize: "0.875rem" }}>
-                  {issue.fund}
-                </p>
-                <p className="text-[#8A9BBE] mt-0.5" style={{ fontSize: "0.6875rem" }}>Allocated</p>
+              {/* Votes */}
+              <div className="w-20 flex-shrink-0">
+                <button
+                  onClick={() => handleUpvote(issue.id)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
+                  style={{
+                    background: issue.upvotedBy?.includes(JSON.parse(localStorage.getItem("user") || "{}").email) ? "#D1FAE5" : "#F0F4FA",
+                    color: issue.upvotedBy?.includes(JSON.parse(localStorage.getItem("user") || "{}").email) ? "#059669" : "#8A9BBE",
+                    cursor: "pointer",
+                    fontSize: "0.8125rem",
+                    fontWeight: 600,
+                  }}
+                  disabled={issue.upvotedBy?.includes(JSON.parse(localStorage.getItem("user") || "{}").email)}
+                >
+                  👍 {issue.votes || 0}
+                </button>
               </div>
 
               {/* Status */}
               <div className="w-28 flex-shrink-0 flex justify-end">
-                <StatusBadge status={issue.status} />
+                <span
+                  className="inline-block px-2.5 py-1 rounded-full text-xs font-medium"
+                  style={{
+                    background: issue.status === "Open" ? "#FEE2E2" : issue.status === "In Progress" ? "#FEF3C7" : "#D1FAE5",
+                    color: issue.status === "Open" ? "#991B1B" : issue.status === "In Progress" ? "#92400E" : "#065F46",
+                  }}
+                >
+                  {issue.status}
+                </span>
               </div>
 
-              {/* Date */}
-              <div className="w-24 flex-shrink-0 text-right">
-                <p className="text-[#8A9BBE]" style={{ fontSize: "0.75rem" }}>{issue.date}</p>
+              {/* Blockchain */}
+              <div className="w-32 flex-shrink-0 text-right">
+                <p className="text-xs font-mono text-[#8A9BBE]">
+                  {issue.txHash && issue.txHash !== "Pending" ? (
+                    <a
+                      href={`https://sepolia.etherscan.io/tx/${issue.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                      title={issue.txHash}
+                    >
+                      ⛓️ {issue.txHash.substring(0, 10)}...
+                    </a>
+                  ) : (
+                    <span>⏳ Pending</span>
+                  )}
+                </p>
               </div>
             </div>
-          ))}
-        </div>
-      </Card>
+          ))
+        )}
+      </div>
+    </Card>
 
-      {/* Blockchain Strip */}
-      <BlockchainStrip blockNumber="#22,847,391" txHash="0x7c4f…b2e9" />
-    </div>
+    {/* Blockchain Strip */}
+    <BlockchainStrip blockNumber="#22,847,391" txHash="0x7c4f…b2e9" />
+  </div>
   );
 }

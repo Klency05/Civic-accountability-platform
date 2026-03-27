@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router";
 import {
   Upload, X, Image as ImageIcon, AlertTriangle, CheckCircle2,
 } from "lucide-react";
@@ -46,6 +47,7 @@ const categoryMap: Record<string, string> = {
 };
 
 export function ReportIssue() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     title: "", category: "", description: "", location: "", zone: "", priority: "medium",
   });
@@ -64,44 +66,48 @@ export function ReportIssue() {
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault(); // prevent page reload
-  setLoading(true);
+    const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
 
-  try {
-    const newIssue = {
-      id: "CIV-" + Math.floor(1000 + Math.random() * 9000),
-      category: categoryMap[form.category] || form.category,
-      title: form.title,
-      description: form.description,
-      location: form.location,
-      zone: form.zone,
-      priority: form.priority,
-      reporter: "Citizen",
-      date: new Date().toLocaleDateString("en-IN"),
-      status: "Open",
-      fund: 0,
-      txHash: "Pending",
-    };
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const newIssue = {
+        id: "CIV-" + Math.floor(1000 + Math.random() * 9000),
+        category: categoryMap[form.category] || form.category,
+        title: form.title,
+        description: form.description,
+        location: form.location,
+        zone: form.zone,
+        priority: form.priority,
+        reporter: "Citizen",
+        date: new Date().toLocaleDateString("en-IN"),
+        status: "Open",
+        fund: 0,
+        txHash: "Pending",
+        createdBy: user.email || "anonymous",
+        votes: 0,
+        upvotedBy: []
+      };
 
-    const response = await fetch("http://localhost:5000/issues", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newIssue),
-    });
+      const response = await fetch("http://localhost:5000/issues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newIssue),
+      });
 
-    if (!response.ok) {
-      throw new Error("Failed to submit issue");
+      if (!response.ok) {
+        throw new Error("Failed to submit issue");
+      }
+
+      setSubmitted(true);
+    } catch (error) {
+      console.error("Submission error:", error);
+      alert("Something went wrong while submitting.");
+    } finally {
+      setLoading(false);
     }
-
-    setSubmitted(true);
-  } catch (error) {
-    console.error("Submission error:", error);
-    alert("Something went wrong while submitting.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const reset = () => {
     setSubmitted(false);
@@ -157,7 +163,7 @@ export function ReportIssue() {
 
             <div className="flex gap-3 mt-6">
               <Button variant="secondary" fullWidth onClick={reset}>Report Another</Button>
-              <Button variant="primary" fullWidth>Track Status →</Button>
+              <Button variant="primary" fullWidth onClick={() => navigate("/transparency")}>Track Status →</Button>
             </div>
           </Card>
         </div>

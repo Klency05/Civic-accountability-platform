@@ -28,6 +28,22 @@ function fmtFund(n: number) {
 }
 
 export function AdminDashboard() {
+  // Check if user is admin
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  if (user.role !== "admin") {
+    return (
+      <div className="p-8 space-y-6">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="text-5xl mb-4">🚫</div>
+            <h2 className="text-2xl font-bold text-[#0B2447] mb-2">Access Denied</h2>
+            <p className="text-[#8A9BBE]">Only admins can access this page.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   console.log("✅ AdminDashboard mounted");
   const [issues, setIssues] = useState<Issue[]>([]);
   const [search, setSearch] = useState("");
@@ -35,14 +51,16 @@ export function AdminDashboard() {
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [allocAmount, setAllocAmount] = useState("");
   const [modalType, setModalType] = useState<"allocate" | "view" | null>(null);
+
   useEffect(() => {
-  fetch("http://localhost:5000/issues")
-    .then((res) => res.json())
-    .then((data) => {
-      setIssues(data);
-    })
-    .catch((err) => console.error("Error fetching issues:", err));
-}, []);
+    fetch("http://localhost:5000/issues")
+      .then((res) => res.json())
+      .then((data) => {
+        setIssues(data);
+      })
+      .catch((err) => console.error("Error fetching issues:", err));
+  }, []);
+
   const filtered = issues.filter((i) => {
     const matchSearch =
       i.id.toLowerCase().includes(search.toLowerCase()) ||
@@ -54,36 +72,39 @@ export function AdminDashboard() {
   });
 
   const updateStatus = async (id: string, status: IssueStatus) => {
-  await fetch(`http://localhost:5000/issues/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
-  });
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    await fetch(`http://localhost:5000/issues/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, role: user.role }),
+    });
 
-  // Refresh data
-  fetch("http://localhost:5000/issues")
-    .then((res) => res.json())
-    .then((data) => setIssues(data));
-};
+    // Refresh data
+    fetch("http://localhost:5000/issues")
+      .then((res) => res.json())
+      .then((data) => setIssues(data));
+  };
+
   const allocateFund = async () => {
-  if (!selectedIssue || !allocAmount) return;
+    if (!selectedIssue || !allocAmount) return;
 
-  const amt = parseInt(allocAmount, 10);
-  if (isNaN(amt)) return;
+    const amt = parseInt(allocAmount, 10);
+    if (isNaN(amt)) return;
 
-  await fetch(`http://localhost:5000/issues/${selectedIssue.id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fund: amt }),
-  });
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    await fetch(`http://localhost:5000/issues/${selectedIssue.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fund: amt, role: user.role }),
+    });
 
-  // Refresh data
-  fetch("http://localhost:5000/issues")
-    .then((res) => res.json())
-    .then((data) => setIssues(data));
+    // Refresh data
+    fetch("http://localhost:5000/issues")
+      .then((res) => res.json())
+      .then((data) => setIssues(data));
 
-  closeModal();
-};
+    closeModal();
+  };
 
   const closeModal = () => { setModalType(null); setSelectedIssue(null); setAllocAmount(""); };
 

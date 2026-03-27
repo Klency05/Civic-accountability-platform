@@ -164,14 +164,34 @@ export function Layout() {
               >
                 <User className="w-4 h-4 text-white" />
               </div>
-              <div className="hidden sm:block">
+                            <div className="hidden sm:block">
                 <p className="text-[#0B2447]" style={{ fontWeight: 600, fontSize: "0.8125rem", lineHeight: "1.2" }}>
-                  Senthilkumar R.
+                  {(() => {
+                    const user = JSON.parse(localStorage.getItem("user") || "{}");
+                    return user.email || "Guest";
+                  })()}
                 </p>
                 <p className="text-[#8A9BBE]" style={{ fontSize: "0.6875rem", lineHeight: "1.3" }}>
-                  Zone Ward Officer
+                  {(() => {
+                    const user = JSON.parse(localStorage.getItem("user") || "{}");
+                    return user.role === "admin" ? "🛡️ Admin" : "👤 Citizen";
+                  })()}
                 </p>
               </div>
+              <button
+                onClick={() => {
+                  localStorage.removeItem("user");
+                  window.location.href = "/login";
+                }}
+                className="ml-3 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors"
+                style={{
+                  background: "#FEE2E2",
+                  color: "#991B1B",
+                  borderLeft: "1px solid #E2EAF4"
+                }}
+              >
+                Logout
+              </button>
             </div>
           </div>
         </header>
